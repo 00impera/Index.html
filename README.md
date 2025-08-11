@@ -1,397 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Crypto Vault - Secure Storage</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><text y=%2218%22 font-size=%2218%22>🔐</text></svg>">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body { font-family: system-ui, sans-serif; background: #181830; color: #f8f8f8; }
+    main { max-width: 480px; margin: 2em auto; background: #23234a; border-radius: 14px; padding: 2em; box-shadow: 0 4px 18px #0004; }
+    h1 { text-align: center; }
+    .section { background: #232350; border-radius: 10px; margin: 1.5em 0; padding: 1em; }
+    label { display: block; margin: .7em 0 .2em; }
+    input, select, button { font-size: 1em; border-radius: 6px; border: none; padding: 0.45em 0.8em; margin-bottom: .4em; }
+    input, select { width: 100%; background: #282850; color: #f8f8f8; border: 1px solid #393974; }
+    button { background: #4d97fa; color: #fff; border: none; padding: .5em 1.1em; cursor: pointer; margin-top: .5em; }
+    button:hover { background: #276bd3; }
+    .wallet-list { margin: .5em 0 0 1em; padding: 0; }
+    .wallet-list li { font-size: .97em; margin-bottom: .3em; }
+    .msg { margin: 1em 0; background: #282850; border-left: 4px solid #4d97fa; padding: 1em; border-radius: 7px; }
+    .msg.error { border-color: #f76d6d; color: #f76d6d; background: #391d2a; }
+    code { background: #101020; color: #f8f8f8; padding: 0.08em 0.28em; border-radius: 4px; word-break: break-all; }
+    @media (max-width:600px){ main{padding:1em;} }
+  </style>
+</head>
+<body>
+<main>
+  <h1>🔐 Crypto Vault</h1>
 
-            appState.isLocked = true;
-            clearAutoLockTimer();
-            updateDisplay();
-            showMessage('Vault locked securely.');
-        }
+  <form class="section" onsubmit="unlockVault(); return false;" autocomplete="off">
+    <label for="pinInput">Enter PIN:</label>
+    <input type="password" id="pinInput" autocomplete="new-password" required minlength="6">
+    <label for="phoneInput">Phone Number for SMS Notification:</label>
+    <input type="text" id="phoneInput" placeholder="+33612345678">
+    <button type="submit">Unlock Vault</button>
+  </form>
 
-        function startAutoLockTimer() {
-            clearAutoLockTimer();
-            appState.autoLockTimer = setTimeout(() => {
-                lockVault();
-                showMessage('Vault auto-locked due to inactivity.', 'attempts-warning');
-            }, SECURITY_CONFIG.autoLockTime);
-        }
+  <form class="section" onsubmit="setOwner(); return false;">
+    <label for="ownerInput">Vault Owner Name:</label>
+    <input type="text" id="ownerInput" maxlength="50" required>
+    <button type="submit">Set Name</button>
+  </form>
 
-        function clearAutoLockTimer() {
-            if (appState.autoLockTimer) {
-                clearTimeout(appState.autoLockTimer);
-                appState.autoLockTimer = null;
-            }
-        }
+  <form class="section" onsubmit="addWallet(); return false;">
+    <label for="cryptoType">Select Crypto Type:</label>
+    <select id="cryptoType">
+      <option value="ETH">Ethereum</option>
+      <option value="BTC">Bitcoin</option>
+      <option value="SOL">Solana</option>
+      <option value="ADA">Cardano</option>
+      <option value="DOT">Polkadot</option>
+      <option value="XRP">Ripple</option>
+      <option value="LTC">Litecoin</option>
+    </select>
+    <label for="walletInput">Wallet Private Key:</label>
+    <input type="text" id="walletInput" autocomplete="off" required>
+    <button type="submit">Add Wallet</button>
+  </form>
 
-        function resetAutoLockTimer() {
-            if (!appState.isLocked) {
-                startAutoLockTimer();
-            }
-        }
+  <div class="section">
+    <button onclick="exportVault()">Export Vault</button>
+    <input type="file" id="importFile" style="margin-top:0.5em;">
+    <button onclick="importVault()">Import Vault</button>
+  </div>
 
-        function updateDisplay() {
-            const lockScreen = document.getElementById('lockScreen');
-            const vaultInterface = document.getElementById('vaultInterface');
+  <form class="section" onsubmit="changePin(); return false;">
+    <h3>🔧 Change PIN</h3>
+    <label for="currentPin">Current PIN:</label>
+    <input type="password" id="currentPin" autocomplete="off" required>
+    <label for="newPin">New PIN:</label>
+    <input type="password" id="newPin" autocomplete="off" required minlength="6">
+    <label for="confirmPin">Confirm New PIN:</label>
+    <input type="password" id="confirmPin" autocomplete="off" required minlength="6">
+    <button type="submit">Change PIN</button>
+  </form>
 
-            if (appState.isLocked) {
-                lockScreen.classList.remove('hidden');
-                vaultInterface.classList.add('hidden');
-            } else {
-                lockScreen.classList.add('hidden');
-                vaultInterface.classList.remove('hidden');
-                displayWallets();
-            }
-            updateOwnerDisplay();
-        }
+  <section id="vaultDisplay" class="section" aria-live="polite"></section>
+  <div id="messageDisplay" class="msg" style="display:none;"></div>
+</main>
 
-        function updateOwnerDisplay() {
-            const ownerNameElements = [
-                document.getElementById('ownerName'),
-                document.getElementById('vaultOwnerName')
-            ];
-            
-            const displayName = appState.ownerName ? `${appState.ownerName}'s Vault` : 'Vault Owner: Not Set';
-            
-            ownerNameElements.forEach(element => {
-                if (element) {
-                    element.textContent = displayName;
-                    if (appState.ownerName) {
-                        element.style.color = '#ff6b35';
-                    } else {
-                        element.style.color = '#a0a0a0';
-                    }
-                }
-            });
+<script>
+  let vault = { owner: '', wallets: [] };
+  let failedAttempts = 0;
 
-            // Update subtitles when name is set
-            if (appState.ownerName) {
-                const lockSubtitle = document.getElementById('lockSubtitle');
-                const vaultSubtitle = document.getElementById('vaultSubtitle');
-                
-                if (lockSubtitle) {
-                    lockSubtitle.textContent = `Welcome back! Enter your PIN to access`;
-                }
-                if (vaultSubtitle) {
-                    vaultSubtitle.textContent = `Personal secure cryptocurrency storage`;
-                }
-            }
-        }
+  function showMessage(msg, type = "success") {
+    const el = document.getElementById("messageDisplay");
+    el.innerText = msg;
+    el.className = "msg " + type;
+    el.style.display = "block";
+    setTimeout(() => { el.style.display = "none"; }, 3500);
+  }
 
-        function showNameSetup() {
-            document.getElementById('nameSetupModal').classList.remove('hidden');
-            document.getElementById('ownerNameInput').value = appState.ownerName || '';
-            document.getElementById('nameMessage').innerHTML = '';
-        }
+  function validatePin(pin) {
+    if (pin.length < 6) return "PIN must be at least 6 characters.";
+    if (!/\d/.test(pin)) return "PIN must contain digits.";
+    return "OK";
+  }
 
-        function showNameChange() {
-            if (appState.isLocked) {
-                showMessage('Please unlock the vault first to change name.', 'error');
-                return;
-            }
-            showNameSetup();
-        }
+  async function sendFreeSMS(phone, message) {
+    try {
+      const response = await fetch("https://textbelt.com/text", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ phone, message, key: "textbelt" })
+      });
+      const result = await response.json();
+      if (result.success) showMessage("SMS sent successfully.");
+      else showMessage("SMS failed: " + result.error, "error");
+    } catch {
+      showMessage("SMS request failed.", "error");
+    }
+  }
 
-        function hideNameSetup() {
-            document.getElementById('nameSetupModal').classList.add('hidden');
-            document.getElementById('ownerNameInput').value = '';
-        }
+  async function encryptVault(pin) {
+    const enc = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey("raw", enc.encode(pin), {name: "PBKDF2"}, false, ["deriveKey"]);
+    const key = await crypto.subtle.deriveKey(
+      {name: "PBKDF2", salt: enc.encode("vault_salt"), iterations: 100000, hash: "SHA-256"},
+      keyMaterial, {name: "AES-GCM", length: 256}, false, ["encrypt"]
+    );
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encrypted = await crypto.subtle.encrypt({name: "AES-GCM", iv: iv}, key, enc.encode(JSON.stringify(vault)));
+    return {cipher: Array.from(new Uint8Array(encrypted)), iv: Array.from(iv)};
+  }
 
-        function showNameMessage(message, type = 'success') {
-            const messageDiv = document.getElementById('nameMessage');
-            messageDiv.innerHTML = `<div class="status-message ${type}">${message}</div>`;
-            setTimeout(() => messageDiv.innerHTML = '', 3000);
-        }
+  async function decryptVault(pin, stored) {
+    try {
+      const enc = new TextEncoder();
+      const keyMaterial = await crypto.subtle.importKey("raw", enc.encode(pin), {name: "PBKDF2"}, false, ["deriveKey"]);
+      const key = await crypto.subtle.deriveKey(
+        {name: "PBKDF2", salt: enc.encode("vault_salt"), iterations: 100000, hash: "SHA-256"},
+        keyMaterial, {name: "AES-GCM", length: 256}, false, ["decrypt"]
+      );
+      const decrypted = await crypto.subtle.decrypt(
+        {name: "AES-GCM", iv: new Uint8Array(stored.iv)},
+        key,
+        new Uint8Array(stored.cipher)
+      );
+      const dec = new TextDecoder().decode(decrypted);
+      vault = JSON.parse(dec);
+      return true;
+    } catch {
+      return false;
+    }
+  }
 
-        function setOwnerName() {
-            const nameInput = document.getElementById('ownerNameInput').value.trim();
-            
-            if (!nameInput) {
-                showNameMessage('Please enter a name or tag.', 'error');
-                return;
-            }
+  async function unlockVault() {
+    const pin = document.getElementById("pinInput").value.trim();
+    const phone = document.getElementById("phoneInput").value.trim();
+    const stored = localStorage.getItem("vault");
+    if (!stored) { showMessage("No vault found.", "error"); return; }
+    const validation = validatePin(pin);
+    if (validation !== "OK") { showMessage(validation, "error"); return; }
+    const parsed = JSON.parse(stored);
+    const success = await decryptVault(pin, parsed);
+    if (success) {
+      failedAttempts = 0;
+      displayVault();
+      showMessage("Vault unlocked successfully.");
+      if (phone.startsWith("+")) {
+        await sendFreeSMS(phone, `Vault accessed at ${new Date().toLocaleString()}`);
+      }
+    } else {
+      failedAttempts++;
+      showMessage("Incorrect PIN. Attempt " + failedAttempts, "error");
+    }
+  }
 
-            if (nameInput.length < 2) {
-                showNameMessage('Name must be at least 2 characters long.', 'error');
-                return;
-            }
+  async function changePin() {
+    const current = document.getElementById("currentPin").value.trim();
+    const newPin = document.getElementById("newPin").value.trim();
+    const confirm = document.getElementById("confirmPin").value.trim();
+    if (newPin !== confirm) { showMessage("New PINs do not match.", "error"); return; }
+    if (newPin.length < 6) { showMessage("New PIN must be at least 6 characters.", "error"); return; }
+    const stored = JSON.parse(localStorage.getItem("vault") || "null");
+    if (!stored) { showMessage("No vault found.", "error"); return; }
+    const success = await decryptVault(current, stored);
+    if (!success) { showMessage("Current PIN is incorrect.", "error"); return; }
+    const encrypted = await encryptVault(newPin);
+    localStorage.setItem("vault", JSON.stringify(encrypted));
+    showMessage("PIN changed successfully.");
+    document.getElementById("currentPin").value = "";
+    document.getElementById("newPin").value = "";
+    document.getElementById("confirmPin").value = "";
+  }
 
-            if (nameInput.length > 30) {
-                showNameMessage('Name must be 30 characters or less.', 'error');
-                return;
-            }
+  function setOwner() {
+    const owner = document.getElementById("ownerInput").value.trim();
+    if (!owner) { showMessage("Owner name is required.", "error"); return; }
+    vault.owner = owner;
+    displayVault();
+    showMessage("Vault owner set.");
+    document.getElementById("ownerInput").value = "";
+  }
 
-            // Basic validation for appropriate characters
-            if (!/^[a-zA-Z0-9\s\-_'\.]+$/.test(nameInput)) {
-                showNameMessage('Name can only contain letters, numbers, spaces, and basic punctuation.', 'error');
-                return;
-            }
+  function addWallet() {
+    const key = document.getElementById("walletInput").value.trim();
+    const type = document.getElementById("cryptoType").value;
+    if (!key) { showMessage("Enter a private key.", "error"); return; }
+    vault.wallets.push({type: type, key: key});
+    displayVault();
+    showMessage("Wallet added.");
+    document.getElementById("walletInput").value = "";
+  }
 
-            // Set the name
-            appState.ownerName = nameInput;
-            saveStoredData();
-            updateOwnerDisplay();
-            
-            showNameMessage('Name tag set successfully! 🎉', 'success');
-            
-            setTimeout(() => {
-                hideNameSetup();
-                if (appState.isLocked) {
-                    showMessage(`Welcome ${nameInput}! Your vault is now personalized.`, 'success');
-                } else {
-                    showMessage('Name tag updated successfully!', 'success');
-                }
-            }, 1500);
-        }
+  async function exportVault() {
+    const pin = document.getElementById("pinInput").value.trim();
+    if (!pin) { showMessage("Enter your PIN to export.", "error"); return; }
+    const encrypted = await encryptVault(pin);
+    localStorage.setItem("vault", JSON.stringify(encrypted));
+    const blob = new Blob([JSON.stringify(encrypted)], {type: "application/octet-stream"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "vault_backup.vault";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showMessage("Vault exported.");
+  }
 
-        function saveWallet() {
-            const wallet = {
-                id: Date.now(),
-                name: document.getElementById('walletName').value,
-                crypto: document.getElementById('cryptoType').value,
-                address: document.getElementById('walletAddress').value,
-                privateKey: encryptData(document.getElementById('privateKey').value),
-                notes: document.getElementById('notes').value,
-                created: new Date().toLocaleString()
-            };
+  function importVault() {
+    const file = document.getElementById("importFile").files[0];
+    if (!file) { showMessage("Select a file first.", "error"); return; }
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const imported = JSON.parse(e.target.result);
+        localStorage.setItem("vault", JSON.stringify(imported));
+        showMessage("Vault imported successfully.");
+        displayVault();
+      } catch {
+        showMessage("Invalid vault file.", "error");
+      }
+    };
+    reader.readAsText(file);
+  }
 
-            if (!wallet.name || !wallet.address) {
-                showMessage('Please fill in wallet name and address.', 'error');
-                return;
-            }
+  function displayVault() {
+    const el = document.getElementById("vaultDisplay");
+    let html = "";
+    html += `<strong>Owner:</strong> ${vault.owner ? vault.owner : "<em>(not set)</em>"}<br>`;
+    html += `<strong>Wallets:</strong>`;
+    if (vault.wallets.length === 0) {
+      html += " <em>none</em>";
+    } else {
+      html += `<ul class="wallet-list">`;
+      for (const w of vault.wallets) {
+        html += `<li><strong>${w.type}:</strong> <code>${w.key}</code></li>`;
+      }
+      html += `</ul>`;
+    }
+    el.innerHTML = html;
+  }
 
-            appState.wallets.push(wallet);
-            saveStoredData();
-            clearForm();
-            displayWallets();
-            showMessage('Wallet saved securely!');
-        }
-
-        function deleteWallet(id) {
-            if (confirm('Are you sure you want to delete this wallet?')) {
-                appState.wallets = appState.wallets.filter(w => w.id !== id);
-                saveStoredData();
-                displayWallets();
-                showMessage('Wallet deleted.');
-            }
-        }
-
-        function displayWallets() {
-            const listDiv = document.getElementById('walletList');
-            
-            if (appState.wallets.length === 0) {
-                listDiv.innerHTML = '<p style="text-align: center; color: #a0a0a0; margin: 20px 0;">No wallets stored yet.</p>';
-                return;
-            }
-
-            listDiv.innerHTML = appState.wallets.map(wallet => `
-                <div class="wallet-item">
-                    <div class="wallet-name">${wallet.name}</div>
-                    <div class="wallet-info">
-                        <span><strong>Type:</strong> ${wallet.crypto}</span>
-                        <span><strong>Address:</strong> ${wallet.address.substring(0, 20)}...</span>
-                        <span><strong>Created:</strong> ${wallet.created}</span>
-                        ${wallet.notes ? `<span><strong>Notes:</strong> ${wallet.notes}</span>` : ''}
-                    </div>
-                    <div style="margin-top: 10px;">
-                        <button class="btn btn-secondary" onclick="viewPrivateKey('${wallet.id}')" style="width: auto; margin-right: 10px; padding: 8px 16px;">View Key</button>
-                        <button class="btn btn-danger" onclick="deleteWallet(${wallet.id})" style="width: auto; padding: 8px 16px;">Delete</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function viewPrivateKey(id) {
-            const wallet = appState.wallets.find(w => w.id == id);
-            if (wallet) {
-                const decryptedKey = decryptData(wallet.privateKey);
-                alert(`Private Key/Seed for ${wallet.name}:\n\n${decryptedKey}\n\n⚠️ Keep this information secure!`);
-            }
-        }
-
-        function clearForm() {
-            document.getElementById('walletName').value = '';
-            document.getElementById('cryptoType').value = 'Bitcoin';
-            document.getElementById('walletAddress').value = '';
-            document.getElementById('privateKey').value = '';
-            document.getElementById('notes').value = '';
-        }
-
-        function exportVault() {
-            const exportData = {
-                wallets: appState.wallets,
-                exported: new Date().toISOString()
-            };
-            
-            const blob = new Blob([JSON.stringify(exportData, null, 2)], {type: 'application/json'});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `crypto-vault-backup-${new Date().toISOString().slice(0,10)}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-            
-            showMessage('Vault exported successfully!');
-        }
-
-        // Simple encryption (Base64) - In production, use proper encryption
-        function encryptData(data) {
-            return btoa(unescape(encodeURIComponent(data)));
-        }
-
-        function decryptData(encryptedData) {
-            return decodeURIComponent(escape(atob(encryptedData)));
-        }
-
-        function saveStoredData() {
-            const dataToSave = {
-                wallets: appState.wallets,
-                failedAttempts: appState.failedAttempts,
-                lastAttempt: appState.lastAttempt,
-                userPin: appState.userPin,
-                ownerName: appState.ownerName
-            };
-            // In a real application, this would be saved to a secure local storage
-            sessionStorage.setItem('cryptoVaultData', JSON.stringify(dataToSave));
-        }
-
-        function loadStoredData() {
-            const savedData = sessionStorage.getItem('cryptoVaultData');
-            if (savedData) {
-                const data = JSON.parse(savedData);
-                appState.wallets = data.wallets || [];
-                appState.failedAttempts = data.failedAttempts || 0;
-                appState.lastAttempt = data.lastAttempt || 0;
-                appState.userPin = data.userPin || '123456';
-                appState.ownerName = data.ownerName || null;
-            }
-        }
-
-        function showPinSetup() {
-            document.getElementById('pinSetupModal').classList.remove('hidden');
-            document.getElementById('currentPinGroup').style.display = 'block';
-            document.getElementById('pinChangeBtn').textContent = 'Change PIN';
-            document.getElementById('pinMessage').innerHTML = '';
-            clearPinFields();
-        }
-
-        function showPinChange() {
-            if (appState.isLocked) {
-                showMessage('Please unlock the vault first to change PIN.', 'error');
-                return;
-            }
-            showPinSetup();
-        }
-
-        function hidePinSetup() {
-            document.getElementById('pinSetupModal').classList.add('hidden');
-            clearPinFields();
-        }
-
-        function clearPinFields() {
-            document.getElementById('currentPin').value = '';
-            document.getElementById('newPin').value = '';
-            document.getElementById('confirmPin').value = '';
-        }
-
-        function showPinMessage(message, type = 'success') {
-            const messageDiv = document.getElementById('pinMessage');
-            messageDiv.innerHTML = `<div class="status-message ${type}">${message}</div>`;
-            setTimeout(() => messageDiv.innerHTML = '', 3000);
-        }
-
-        function changePinCode() {
-            const currentPin = document.getElementById('currentPin').value.trim();
-            const newPin = document.getElementById('newPin').value.trim();
-            const confirmPin = document.getElementById('confirmPin').value.trim();
-
-            // Validation
-            if (!currentPin && appState.userPin !== '123456') {
-                showPinMessage('Please enter your current PIN.', 'error');
-                return;
-            }
-
-            if (appState.userPin !== '123456' && currentPin !== appState.userPin) {
-                showPinMessage('Current PIN is incorrect.', 'error');
-                return;
-            }
-
-            if (!newPin) {
-                showPinMessage('Please enter a new PIN.', 'error');
-                return;
-            }
-
-            if (newPin.length < 4 || newPin.length > 8) {
-                showPinMessage('PIN must be 4-8 digits long.', 'error');
-                return;
-            }
-
-            if (!/^\d+$/.test(newPin)) {
-                showPinMessage('PIN must contain only numbers.', 'error');
-                return;
-            }
-
-            if (newPin !== confirmPin) {
-                showPinMessage('PINs do not match. Please try again.', 'error');
-                return;
-            }
-
-            if (newPin === currentPin) {
-                showPinMessage('New PIN must be different from current PIN.', 'error');
-                return;
-            }
-
-            // Warn about weak PINs
-            if (isWeakPin(newPin)) {
-                if (!confirm('Warning: This PIN may be easy to guess. Common patterns like 1234, 0000, or repeated digits are not secure. Do you want to use it anyway?')) {
-                    return;
-                }
-            }
-
-            // Set new PIN
-            appState.userPin = newPin;
-            saveStoredData();
-            
-            showPinMessage('PIN changed successfully! 🎉', 'success');
-            
-            setTimeout(() => {
-                hidePinSetup();
-                if (appState.isLocked) {
-                    showMessage('New PIN set! You can now use it to unlock your vault.', 'success');
-                } else {
-                    showMessage('PIN updated successfully!', 'success');
-                }
-            }, 1500);
-        }
-
-        function isWeakPin(pin) {
-            // Check for common weak patterns
-            const weakPatterns = [
-                /^(\d)\1+$/, // All same digits (1111, 2222, etc.)
-                /^1234/, // Sequential ascending
-                /^4321/, // Sequential descending
-                /^0000/, // All zeros
-                /^1111/, // All ones
-                /^2222/, // All twos
-                /^9999/, // All nines
-            ];
-
-            return weakPatterns.some(pattern => pattern.test(pin)) || 
-                   pin === '0123' || pin === '3210' || 
-                   pin === '1357' || pin === '2468' ||
-                   pin === '8765' || pin === '5678';
-        }
-
-        function showInstructions() {
-            document.getElementById('instructionsModal').classList.remove('hidden');
-        }
-
-        function hideInstructions() {
-            document.getElementById('instructionsModal').classList.add('hidden');
-        }
-
-        // Clear data when page unloads for security
-        window.onbeforeunload = function() {
-            clearAutoLockTimer();
-        };
-    </script>
+  // On load, try to display vault if present
+  window.addEventListener('DOMContentLoaded', () => {
+    const stored = localStorage.getItem("vault");
+    if (stored) {
+      // Try default PIN "000000" for demonstration, vault remains locked if not matching
+      decryptVault("000000", JSON.parse(stored)).then(success => {
+        if (success) displayVault();
+      });
+    }
+  });
+</script>
 </body>
 </html>
-
-       
