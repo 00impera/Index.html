@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Vault - Secure Storage</title>
+    <style>
+        /* ...[Styles unchanged, omitted for brevity]... */
+    </style>
+</head>
+<body>
+    <div class="vault-container">
+        <!-- Lock Screen -->
+        <!-- ...[Unchanged UI code omitted for brevity]... -->
+
+        <!-- Instructions Modal -->
+        <div id="instructionsModal" class="modal hidden">
+            <div class="modal-content">
+                <!-- Updated instructions start here -->
+                <section id="how-to-use-crypto-vault" style="max-width:600px;margin:2em auto;padding:1em;border:1px solid #ccc;border-radius:8px;background:#fafbfc;color:#222;">
+                  <h2>How to Use Crypto Vault</h2>
+                  <ol>
+                    <li><strong>Set Up Your Vault:</strong> Choose a strong PIN and enter your name to create your vault.</li>
+                    <li><strong>Add Wallets:</strong> Add your cryptocurrency wallets.<br>
+                        <em>Note: For demonstration, private keys are encoded but not securely encrypted.</em>
+                    </li>
+                    <li><strong>Unlock to Access:</strong> Use your PIN to unlock the vault and access your wallets.</li>
+                    <li><strong>Backup:</strong> Use the Export feature to save a backup of your wallets.<br>
+                        <em>Warning: All data is stored locally in your browser. If you clear your browser data or use a different browser/device, your wallets will be lost.</em>
+                    </li>
+                    <li><strong>Using on Ubuntu/Linux:</strong> You can use Crypto Vault on Ubuntu or any Linux system by simply opening the <code>index.html</code> file in your web browser (e.g., Firefox, Chrome). No additional installation is required.</li>
+                  </ol>
+                </section>
+                <button class="btn btn-secondary" onclick="hideInstructions()">Close</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        // ...[Script unchanged, omitted for brevity]...
+    </script>
+</body>
+</html>
